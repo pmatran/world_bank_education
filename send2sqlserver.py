@@ -25,7 +25,8 @@ parser.add_argument('-s', '--server', type=str, required=True, help=h_s)
 parser.add_argument('-db', '--database', type=str, required=True, help=h_db)
 
 # -- Collect arguments values
-s, db = [os.path.normpath(v) for _, v in parser.parse_args()._get_kwargs()]
+args = parser.parse_args()
+s, db = args.server, args.database
 
 # -- Build connection asq string
 #conn_str = 'DRIVER={SQL Server};SERVER=' + s + ';DATABASE=' + db + ';TRUSTED_CONNECTION=yes;'
