@@ -8,10 +8,10 @@
 
 <br>
 <H1 align="center">
-	<img height="50" width="250" src="https://upload.wikimedia.org/wikipedia/commons/8/87/The_World_Bank_logo.svg">
-	<br>
-	<br>
 	<b>Education Statistics Dataset</b>
+	<br>
+	<br>
+	<img height="70" width="350" src="https://upload.wikimedia.org/wikipedia/commons/8/87/The_World_Bank_logo.svg">
 </H1>
 <br>
 <br>
@@ -63,4 +63,4 @@ Ressources
 
 Disclaimer :no_entry:
 -----------------------------------------------
-This project was created to evaluate the SQL skills of all collaborators ([@pmatran](https://github.com/pmatran), [@JonatanPlantey](https://github.com/JonatanPlantey)) by their professor at M2-IASchool (Bordeaux, FRANCE).
+This project was created to evaluate the SQL skills of all collaborators ([@pmatran](https://github.com/pmatran), [@JonatanPlantey](https://github.com/JonatanPlantey), [@LouisLoyer](https://github.com/LouisLoyer)) by their professor at M2-IASchool (Bordeaux, FRANCE).
