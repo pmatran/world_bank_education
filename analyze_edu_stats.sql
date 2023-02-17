@@ -88,6 +88,7 @@ EXEC (@sql);
 CLOSE column_cursor;
 DEALLOCATE column_cursor;
 
+
 /* We identify that for some reason the very import column named `region`
 (table named `country`) contains some NULL values. However, an other column
 in the same table seems to have the correct value of this field.
@@ -151,13 +152,14 @@ Let's assume that the usefull columns correspond to:
 	- country currency          (to fix online course price)
 	- income_group				(to adapt course prices to country's standard of living)
 	- 2000, .., 2017			(indicator historical values -> from 2000 to 2017)
-	- 2017, ..., 2035           (indicator predictive values -> from 2017 to 2035)
+	- 2017, ..., 2035           (indicator predictive values -> from 2017 to 2035) [we assume that 2035 is far enough]
 	
 Now, let's try to build a new table with all usefull elements
 */
-
--- DROP TABLE main
-SELECT  data.country_code,
+DROP TABLE main
+-- Build main data table
+SELECT  DISTINCT
+		data.country_code,
 		data.country_name,
 		data.indicator_code,
 		data.indicator_name,
@@ -198,34 +200,173 @@ ON data.indicator_code = series.series_code
 LEFT JOIN country
 ON data.country_code = country.country_code
 
-/* 
-Dear collaborator,
-At this stage please add a WHERE statement to focus only on "lycée et enseignement superieur" education stage.
-for that, let's have a look to the equivalents between grades between France / International grades (exemples here):
- --> https://france-amerique.com/fr/dune-classe-a-lautre/
- --> https://nelio-multimedia.com/kemimalaika/tableau_equivalence.pdf
- --> https://www.femmexpat.com/dossiers/education/la-scolarite/equivalences-scolaires-dans-le-monde-comment-sy-retrouver/
+/*
+-5- 
+Let's count the total number of indicators availables in the `main` dataset.
+*/
+SELECT COUNT(DISTINCT indicator_code) AS total_indicators
+FROM main
 
- Please consider using regular expressions instead of multiple ILIKE statements, example:
+/*  
+As calculated above, the dataset gives 3665 distinct indicators so now,
+the goal is to filter the `main` dataset only by meaningful indicators.
+Let's assume that we will focus on 4 categories of indicators:
 
-  --> WHERE indicator_name ~* '(6th|terciary|grade 6)'
+- DEMOGRAPHIC : we are targeting only high school and higher students between 15 and 24 years old
+- ECONOMIC : we are looking for some basic economic metrics like per capita income, standard of living, ...
+- EDUCATIVE : we are looking the state of education such as school enrolment rate, academic achievement, ...
+- NUMERIC : we are obviously targeting people with internet access, personal computer since it's the core of our offer
 
-  To previously see wich indicateur names (as unique values):
-
-  --> SELECT DISTINCT indicator_name FROM main
-
+So let's try to identify 1 or 2 meaningful indicators for each categories.
 */
 
 
--- Try to view some 
-SELECT * FROM main
+/*
+-6- 
+DEMOGRAPHIC INDICATOR SELECTION
 
+According to the World Bank Education documentation we know that the 
+indicators of population contains the `POP` key world. 
+Next the age group 15-24 years old contains the key word `1524`.
 
+Let's filter our `main` table to see all the interested indicators
+*/
 
-
+SELECT * 
+FROM main
+WHERE indicator_code LIKE '%POP%' AND indicator_code LIKE '%1524%'
 
 /* 
--5- 
+We notice that 3 important key words in the indicator for population :
+	- 'FE' : female
+	- 'MA' : male
+	- 'TO' : total
+
+We obviously don't want to differentiate people by gender in this study.
+Let's filter again adding the 'TO' key world.
+*/
+
+SELECT DISTINCT indicator_code, indicator_name, indicator_definition 
+FROM main
+WHERE indicator_code LIKE '%POP%' 
+  AND indicator_code LIKE '%1524%'
+  AND indicator_code LIKE '%TO%'
+
+/* 
+So, the chosen DEMOGRAPHIC indicator is 'SP.POP.1524.TO.UN'
+*/ 
+
+
+/*
+-7- 
+ECONOMIC INDICATOR SELECTION
+
+According to the World Bank Education documentation we know that the
+national accounts indicators starts with the `NY` key world.
+Note that we are preferentially focus on GNI/GNP (Gros National Income)
+rather than GNP (Gross Domestic Product). Finally, we want the currency
+to be based on current international dollar  (key world `CD`) 
+rather than a fix dollar value
+
+Let's filter our `main` table to see all the interested indicators
+*/
+
+SELECT DISTINCT indicator_code, indicator_name, indicator_definition 
+FROM main
+WHERE indicator_code LIKE 'NY%'
+  AND indicator_code LIKE '%GNP%'
+  AND indicator_code LIKE '%CD%'
+
+/* 
+So, the chosen ECONOMIC indicator is 'NY.GNP.PCAP.CD'
+*/ 
+
+/*
+-8- 
+EDUCATIVE INDICATOR SELECTION
+
+According to the World Bank Education documentation we know that the
+social education indicators starts with the `SE` key world.
+Moreover, the document notices that in social education, student are
+grouping by grade categories. Nvertheless, we only want the high school
+student (secondary, key word `SEC`) and higher (tertiary, key word `TER`).
+
+Let's filter our `main` table to see all the interested indicators
+*/
+SELECT DISTINCT indicator_code, indicator_name, indicator_definition 
+FROM main
+WHERE indicator_code LIKE 'SE%' 
+  AND (indicator_code LIKE '%SEC%' OR indicator_code LIKE '%TER%')
+  AND indicator_code NOT LIKE '%.FE%' -- remove female only
+  AND indicator_code NOT LIKE '%.MA%' -- remove male only
+
+/* 
+So, the chosen EDUCATIVE indicator are 'SE.TER.ENRR' and 'SE.SEC.ENRR'
+(Gross enrollment rate in higher education, for both sexes (%))
+*/ 
+
+
+/*
+-9- 
+NUMERIC INDICATOR SELECTION
+
+According to the World Bank Education documentation we know that the
+social education indicators starts with the `IT`.
+
+Let's filter our `main` table to see all the interested indicators
+*/
+
+SELECT DISTINCT indicator_code, indicator_name, indicator_definition 
+FROM main
+WHERE indicator_code LIKE 'IT%'
+
+/*
+We can notice that they are 2 interesting indicators:
+	- 'IT.CMP.PCMP.P2':  % people that own a personal computer
+	- 'IT.NET.USER.P2': % people that correspond to regular internet users
+
+We assume that our startup can be used with all internet connected 
+devices, so the best NUMERIC indicator here is 'IT.NET.USER.P2'
+*/
+
+
+
+/*
+-10-
+
+Now, we will store all selected indicators in a variable (1) 
+in order to filter our `main` by selected indicators. 
+Unfortunatly, the CREATE VIEW statement does not work 
+properly in MS SQL Server, but we can alternativly
+create a procedure to extract the filtered table (2).
+*/
+
+-- Build main procedure
+CREATE PROCEDURE get_filtered AS
+BEGIN
+	-- 1) Store selected indicators
+    DECLARE @selected_indicators NVARCHAR(MAX)
+    SET @selected_indicators = 'SP.POP.1524.TO.UN,SE.SEC.ENRR,SE.TER.ENRR,IT.NET.USER.P2,NY.GNP.PCAP.PP.CD'
+	-- 2) Extract subseted table
+    SELECT *
+    FROM main
+    WHERE indicator_code IN (SELECT value FROM STRING_SPLIT(@selected_indicators, ','))
+END
+
+EXEC get_filtered
+
+
+
+
+
+
+
+
+
+
+
+/*
+- - 
 The objective now is to compute several statistics about all the 
 indicators accross the years. To carry out this study we'll divide
 the process into 3 steps:
