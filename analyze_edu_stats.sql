@@ -140,7 +140,7 @@ SELECT * from table_shape
 
 /* 
 -4- 
-How columns are important for our start-up?
+What columns are important for our start-up?
 Let's assume that the usefull columns correspond to:
 
 	- country_code				(to use as country primary key)
@@ -333,115 +333,94 @@ devices, so the best NUMERIC indicator here is 'IT.NET.USER.P2'
 
 /*
 -10-
-
-Now, we will store all selected indicators in a variable (1) 
-in order to filter our `main` by selected indicators. 
+ 
 Unfortunatly, the CREATE VIEW statement does not work 
 properly in MS SQL Server, but we can alternativly
-create a procedure to extract the filtered table (2).
+create a function to subset the `main` table to by 
+required indicators (2).
 */
 
--- Build main procedure
-CREATE PROCEDURE get_filtered AS
-BEGIN
-	-- 1) Store selected indicators
-    DECLARE @selected_indicators NVARCHAR(MAX)
-    SET @selected_indicators = 'SP.POP.1524.TO.UN,SE.SEC.ENRR,SE.TER.ENRR,IT.NET.USER.P2,NY.GNP.PCAP.PP.CD'
-	-- 2) Extract subseted table
-    SELECT *
-    FROM main
-    WHERE indicator_code IN (SELECT value FROM STRING_SPLIT(@selected_indicators, ','))
-END
+CREATE FUNCTION get_filtered (@indicators nvarchar(max) = NULL)
+RETURNS TABLE
+AS
+RETURN (
+  SELECT *
+  FROM main
+  WHERE indicator_code IN (SELECT value FROM STRING_SPLIT(ISNULL(@indicators, 'SP.POP.1524.TO.UN,SE.SEC.ENRR,SE.TER.ENRR,IT.NET.USER.P2,NY.GNP.PCAP.PP.CD'), ','))
+);
 
-EXEC get_filtered
-
-
-
-
-
-
-
-
+-- Test function on all select indicators
+SELECT * FROM get_filtered(NULL) -- all selected indicators
+SELECT * FROM get_filtered('SE.SEC.ENRR') -- one specific indicator
 
 
 
 /*
-- - 
-The objective now is to compute several statistics about all the 
-indicators accross the years. To carry out this study we'll divide
-the process into 3 steps:
+-11-
 
-	- 1) Create a `statistic` table (temporary table) that sum up all
-		 the required statistics we want to apply (mean, min, max, ...)
+Now let's try to identify the countries with a high potential 
+of customers for our services. We will focus on 2015 results
+since it is the nearest year (today: 2023) with usable data
 
-	- 2) Create a temporary table that UNPIVOT the `main` table on
-	     all numerical columns.
-
-	- 3) Build a `summary` table applying required statistics recursivly
-
+To do so, we will work on the RANK method on the maximum
+value of each indicator in each country. Next, we will assume
+that the the the best country for us to implement our activity
+correspond to the lowest average ranks of selected indicators
+(lowest score).
+	  
 */
 
+-- 1) Perform ranking process (store in temporary table)
+SELECT 
+	country_name,
+	indicator_code,
+	MAX(year_2015) AS max_value,
+	RANK() OVER (PARTITION BY indicator_code ORDER BY MAX(year_2015) DESC) AS rank_number
+INTO ##ranked_by_country
+FROM get_filtered(NULL)
+GROUP BY country_name, indicator_code;
 
--- 1) Build required statistics table (as temporary table)
-CREATE TABLE ##statistic (
-    indicator_name VARCHAR(255),
-    function_name VARCHAR(255)
-);
-
-INSERT INTO ##statistic (indicator_name, function_name)
-VALUES
-    ('mean', 'AVG'),
-    ('standard_deviation', 'STDEV'),
-    ('sum', 'SUM'),
-    ('variance', 'VAR'),
-    ('min', 'MIN'),
-    ('max', 'MAX');
-
-
--- 2) UNPIVOT `main` table into a temporary table ##unpivot
-DECLARE @query AS NVARCHAR(MAX);
-DECLARE @year_columns AS NVARCHAR(MAX);
-
-SELECT @year_columns = STUFF((
-    SELECT ',' + QUOTENAME(name)
-    FROM sys.columns
-    WHERE object_id = OBJECT_ID('main')
-    AND name LIKE 'year_%'
-    FOR XML PATH(''), TYPE
-).value('.', 'NVARCHAR(MAX)'), 1, 1, '');
-
-SET @query = N'
-SELECT region, country_name, indicator_code, year, value
-INTO ##unpivot
-FROM main
-UNPIVOT (
-    value FOR year IN (' + @year_columns + ')
-) AS u;';
-
-EXEC sp_executesql @query;
- 
--- See unpivot table
-SELECT * FROM ##unpivot
+-- 2) Compute score as average(rank_indicator_1, rank_indicator_2, ...)
+SELECT country_name, AVG(rank_number) AS score
+FROM ##ranked_by_country
+GROUP BY country_name
+ORDER BY score;
 
 
--- 3) Apply statistics recursivly
-DECLARE @query AS NVARCHAR(MAX);
+/*
+-12-
 
-SELECT @query = STUFF((
-    SELECT ',' + function_name + '(value) AS ' + indicator_name
-    FROM ##statistic
-    FOR XML PATH(''), TYPE
-).value('.', 'NVARCHAR(MAX)'), 1, 1, '');
+Let's perform the same process but working on larger geographical
+area (`region`).
+	  
+*/
 
-SET @query = N'SELECT region, country_name, indicator_code, ' + @query + '
-INTO summary
-FROM ##unpivot
-GROUP BY region, country_name, indicator_code
-ORDER BY region DESC, country_name, indicator_code';
+-- 1) Perform ranking process (store in temporary table)
+SELECT 
+	region,
+	indicator_code,
+	MAX(year_2015) AS max_value,
+	RANK() OVER (PARTITION BY indicator_code ORDER BY MAX(year_2015) DESC) AS rank_number
+INTO ##ranked_by_region
+FROM get_filtered(NULL)
+GROUP BY region, indicator_code;
 
-EXEC sp_executesql @query;
+-- 2) Compute score as average(rank_indicator_1, rank_indicator_2, ...)
+SELECT region, AVG(rank_number) AS score
+FROM ##ranked_by_region
+GROUP BY region
+ORDER BY score;
 
--- Let's have a look of `summary` table
-SELECT *
-FROM summary
-ORDER BY region DESC
+/* 
+	--- CONCLUSION ---
+
+Most targeted countries: 
+	- Germany
+	- Korea Republic
+	- Spain
+
+Most targeted geographic blocs:
+	- East Asia & Pacific
+	- Europe & Central Asia
+
+*/
