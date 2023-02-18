@@ -17,9 +17,11 @@
 <br>
 
 
-Description & Content
+Description & context
 -----------------------------------------------
-This project is a simple Data Science analysis in SQL language based on World Bank EdStats dataset ...
+This project is a simple Data Science analysis in T-SQL language based on World Bank EdStats dataset.
+The context is to embody a start-up that offers online training content for high school and university level audiences.
+The objective is to explore and manipulate the dataset to extract some insights such as countries/regions where the company must operate in priority.
 
 
 Installation
