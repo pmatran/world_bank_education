@@ -65,4 +65,4 @@ Ressources
 
 Disclaimer :no_entry:
 -----------------------------------------------
-This project was created to evaluate the SQL skills of all collaborators ([@pmatran](https://github.com/pmatran), [@JonatanPlantey](https://github.com/JonatanPlantey), [@LouisLoyer](https://github.com/LouisLoyer)) by their professor at M2-IASchool (Bordeaux, FRANCE).
+This project was created to evaluate the SQL skills of all collaborators ([@pmatran](https://github.com/pmatran), [@JonatanPlantey](https://github.com/JonatanPlantey), [@LouisLoyer](https://github.com/LouisLoyer), [@ngangobulrich](https://github.com/ngangobulrich)) by their professor at M2-IASchool (Bordeaux, FRANCE).
