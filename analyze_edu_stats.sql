@@ -13,7 +13,7 @@ Examine all columns informations of all tables:
 	- DATA_TYPE
 	- NULLABLE
 	- ...
-This will be done with the `EXEC sp_columns` command recursivly
+This will be done with the `EXEC sp_columns` command recursively
 on all `information_schema.tables` using basic cursor.
 */
 
@@ -288,7 +288,7 @@ EDUCATIVE INDICATOR SELECTION
 According to the World Bank Education documentation we know that the
 social education indicators starts with the `SE` key world.
 Moreover, the document notices that in social education, student are
-grouping by grade categories. Nvertheless, we only want the high school
+grouping by grade categories. Nevertheless, we only want the high school
 student (secondary, key word `SEC`) and higher (tertiary, key word `TER`).
 
 Let's filter our `main` table to see all the interested indicators
@@ -364,7 +364,7 @@ since it is the nearest year (today: 2023) with usable data
 
 To do so, we will work on the RANK method on the maximum
 value of each indicator in each country. Next, we will assume
-that the the the best country for us to implement our activity
+that the best country for us to implement our activity
 correspond to the lowest average ranks of selected indicators
 (lowest score).
 	  
@@ -380,7 +380,7 @@ INTO ##ranked_by_country
 FROM get_filtered(NULL)
 GROUP BY country_name, indicator_code;
 
--- 2) Compute score as average(rank_indicator_1, rank_indicator_2, ...)
+-- 2) Compute score as average (rank_indicator_1, rank_indicator_2, ...)
 SELECT country_name, AVG(rank_number) AS score
 FROM ##ranked_by_country
 GROUP BY country_name
