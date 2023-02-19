@@ -156,7 +156,7 @@ Let's assume that the usefull columns correspond to:
 	
 Now, let's try to build a new table with all usefull elements
 */
-DROP TABLE main
+
 -- Build main data table
 SELECT  DISTINCT
 		data.country_code,
